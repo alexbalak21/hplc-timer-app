@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>HPLC Batch Timer</title>
+<style>
+  :root{
+    --bg: #0e1512;
+    --panel: #141d19;
+    --panel-2: #182320;
+    --line: #26362f;
+    --phosphor: #5ee6a8;
+    --phosphor-dim: #2f7a5c;
+    --amber: #e8a23a;
+    --text: #d9e6df;
+    --text-dim: #7d9088;
+    --danger: #d9603a;
+    --mono: 'DM Mono', 'SFMono-Regular', Consolas, monospace;
+    --sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+
+  *{ box-sizing:border-box; -webkit-tap-highlight-color: transparent; }
+
+  html,body{
+    margin:0; padding:0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height:100vh;
+  }
+
+  body{
+    background-image:
+      radial-gradient(ellipse at top, rgba(94,230,168,0.05), transparent 60%),
+      repeating-linear-gradient(0deg, rgba(255,255,255,0.012) 0px, rgba(255,255,255,0.012) 1px, transparent 1px, transparent 3px);
+  }
+
+  .app{
+    max-width: 480px;
+    margin: 0 auto;
+    min-height: 100vh;
+    padding: 20px 16px 40px;
+    display:flex;
+    flex-direction:column;
+    gap: 16px;
+  }
+
+  /* Header */
+  header{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding: 4px 2px 8px;
+    border-bottom: 1px solid var(--line);
+  }
+  .brand{
+    display:flex;
+    align-items:center;
+    gap:10px;
+  }
+  .brand-mark{
+    width: 34px; height: 34px;
+    border-radius: 6px;
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    position:relative;
+  }
+  .brand-mark::before{
+    content:"";
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    border: 2px solid var(--phosphor);
+    box-shadow: 0 0 8px rgba(94,230,168,0.6);
+  }
+  .brand-mark::after{
+    content:"";
+    position:absolute;
+    width: 2px; height: 9px;
+    background: var(--phosphor);
+    top: 6px;
+    transform-origin: bottom center;
+    transform: rotate(35deg) translateY(0px);
+    box-shadow: 0 0 4px rgba(94,230,168,0.8);
+  }
+  .brand-text{ line-height:1.15; }
+  .brand-text .t1{
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+  }
+  .brand-text .t2{
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+  }
+  .status-dot{
+    display:flex;
+    align-items:center;
+    gap:6px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--phosphor);
+    letter-spacing: 0.05em;
+  }
+  .status-dot span.dot{
+    width:6px; height:6px; border-radius:50%;
+    background: var(--phosphor);
+    box-shadow: 0 0 6px var(--phosphor);
+    animation: pulse 2.2s ease-in-out infinite;
+  }
+  @keyframes pulse{
+    0%,100%{ opacity:1; }
+    50%{ opacity:0.35; }
+  }
+
+  /* Readout panel */
+  .readout{
+    background: linear-gradient(180deg, var(--panel-2), var(--panel));
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 20px 18px;
+    position: relative;
+    overflow:hidden;
+  }
+  .readout::before{
+    content:"";
+    position:absolute; inset:0;
+    background: linear-gradient(180deg, rgba(94,230,168,0.06), transparent 40%);
+    pointer-events:none;
+  }
+  .readout-label{
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 6px;
+  }
+  .readout-main{
+    font-family: var(--mono);
+    font-size: 52px;
+    font-weight: 500;
+    color: var(--phosphor);
+    text-shadow: 0 0 18px rgba(94,230,168,0.35);
+    line-height: 1;
+    letter-spacing: 0.01em;
+    display:flex;
+    align-items:baseline;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .readout-main .unit{
+    font-size: 15px;
+    color: var(--phosphor-dim);
+    font-weight: 400;
+  }
+  .readout-sub{
+    margin-top: 12px;
+    display:flex;
+    gap: 18px;
+    font-family: var(--mono);
+    font-size: 12.5px;
+    color: var(--text-dim);
+    flex-wrap: wrap;
+  }
+  .readout-sub b{
+    color: var(--text);
+    font-weight: 500;
+  }
+
+  /* Card */
+  .card{
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 16px;
+  }
+  .card-title{
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin: 0 0 14px;
+    display:flex;
+    align-items:center;
+    gap: 8px;
+  }
+  .card-title::before{
+    content:"";
+    width: 3px; height: 12px;
+    background: var(--phosphor);
+    border-radius: 2px;
+  }
+
+  .field{
+    margin-bottom: 14px;
+  }
+  .field:last-child{ margin-bottom:0; }
+  .field label{
+    display:flex;
+    justify-content:space-between;
+    align-items:baseline;
+    font-size: 13px;
+    color: var(--text-dim);
+    margin-bottom: 6px;
+  }
+  .field label .hint{
+    font-family: var(--mono);
+    font-size: 10.5px;
+    color: var(--phosphor-dim);
+  }
+
+  .stepper{
+    display:flex;
+    align-items:stretch;
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    overflow:hidden;
+  }
+  .stepper button{
+    width: 46px;
+    flex-shrink:0;
+    background: transparent;
+    border: none;
+    color: var(--phosphor);
+    font-size: 20px;
+    font-family: var(--mono);
+    cursor:pointer;
+    transition: background 0.15s;
+  }
+  .stepper button:active{ background: rgba(94,230,168,0.15); }
+  .stepper input{
+    flex:1;
+    min-width: 0;
+    background: transparent;
+    border:none;
+    border-left: 1px solid var(--line);
+    border-right: 1px solid var(--line);
+    text-align:center;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 17px;
+    padding: 12px 4px;
+    outline:none;
+  }
+  .stepper input::-webkit-outer-spin-button,
+  .stepper input::-webkit-inner-spin-button{ -webkit-appearance:none; margin:0; }
+  .stepper input[type=number]{ -moz-appearance: textfield; }
+  .stepper input:focus-visible{
+    box-shadow: inset 0 0 0 2px var(--phosphor-dim);
+  }
+
+  .time-input{
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-family: var(--mono);
+    font-size: 17px;
+    color: var(--text);
+    width: 100%;
+    outline: none;
+  }
+  .time-input:focus-visible{
+    box-shadow: 0 0 0 2px var(--phosphor-dim);
+  }
+
+  .row2{
+    display:grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  .segmented{
+    display:flex;
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 3px;
+    gap: 3px;
+  }
+  .segmented button{
+    flex:1;
+    background: transparent;
+    border: none;
+    color: var(--text-dim);
+    font-family: var(--sans);
+    font-size: 12.5px;
+    font-weight: 600;
+    padding: 8px 4px;
+    border-radius: 7px;
+    cursor:pointer;
+    transition: all 0.15s;
+  }
+  .segmented button.active{
+    background: var(--phosphor-dim);
+    color: #06120c;
+  }
+
+  select.time-input{
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: linear-gradient(45deg, transparent 50%, var(--phosphor-dim) 50%), linear-gradient(135deg, var(--phosphor-dim) 50%, transparent 50%);
+    background-position: calc(100% - 18px) center, calc(100% - 13px) center;
+    background-size: 5px 5px, 5px 5px;
+    background-repeat: no-repeat;
+  }
+
+  .divider-note{
+    font-size: 11.5px;
+    color: var(--text-dim);
+    margin-top: 8px;
+    line-height: 1.5;
+  }
+
+  /* Result grid */
+  .result-grid{
+    display:grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .result-cell{
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 12px 14px;
+  }
+  .result-cell.full{ grid-column: 1 / -1; }
+  .result-cell .rlabel{
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 5px;
+  }
+  .result-cell .rvalue{
+    font-family: var(--mono);
+    font-size: 19px;
+    color: var(--text);
+    font-weight: 500;
+  }
+  .result-cell.accent .rvalue{ color: var(--phosphor); }
+
+  /* History */
+  .history-list{
+    display:flex;
+    flex-direction:column;
+    gap: 8px;
+  }
+  .history-empty{
+    text-align:center;
+    color: var(--text-dim);
+    font-size: 12.5px;
+    padding: 18px 0;
+    font-family: var(--mono);
+  }
+  .history-item{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-size: 12.5px;
+  }
+  .history-item .h-left{ color: var(--text-dim); font-family: var(--mono); font-size:11px; }
+  .history-item .h-mid{ font-weight:600; }
+  .history-item .h-right{ font-family: var(--mono); color: var(--phosphor); font-size:13px; }
+
+  .btn-primary{
+    width:100%;
+    padding: 14px;
+    border-radius: 10px;
+    border: none;
+    background: var(--phosphor);
+    color: #06120c;
+    font-family: var(--sans);
+    font-weight: 700;
+    font-size: 14.5px;
+    letter-spacing: 0.02em;
+    cursor:pointer;
+    transition: transform 0.1s, box-shadow 0.15s;
+    box-shadow: 0 0 20px rgba(94,230,168,0.18);
+  }
+  .btn-primary:active{ transform: scale(0.985); }
+
+  .btn-ghost{
+    width:100%;
+    padding: 11px;
+    border-radius: 10px;
+    border: 1px solid var(--line);
+    background: transparent;
+    color: var(--text-dim);
+    font-family: var(--sans);
+    font-weight: 600;
+    font-size: 12.5px;
+    cursor:pointer;
+    margin-top: 8px;
+  }
+  .btn-ghost:active{ background: var(--panel-2); }
+
+  footer{
+    text-align:center;
+    color: var(--text-dim);
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.06em;
+    padding-top: 6px;
+    opacity: 0.6;
+  }
+
+  .warn{
+    color: var(--amber);
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    .status-dot span.dot{ animation:none; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header>
+    <div class="brand">
+      <div class="brand-mark"></div>
+      <div class="brand-text">
+        <div class="t1">Lab Utility</div>
+        <div class="t2">HPLC Batch Timer</div>
+      </div>
+    </div>
+    <div class="status-dot"><span class="dot"></span>LIVE</div>
+  </header>
+
+  <!-- Main readout -->
+  <div class="readout">
+    <div class="readout-label">Estimated End Time</div>
+    <div class="readout-main" id="endTimeDisplay">--:--<span class="unit">/ --</span></div>
+    <div class="readout-sub">
+      <span>Cycle <b id="cycleSub">--</b></span>
+      <span>Total <b id="totalSub">--</b></span>
+      <span>Runs <b id="runsSub">--</b></span>
+    </div>
+  </div>
+
+  <!-- Inputs -->
+  <div class="card">
+    <p class="card-title">Method Parameters</p>
+
+    <div class="field">
+      <label>Analysis time <span class="hint">MM:SS or minutes</span></label>
+      <input type="text" class="time-input" id="analysisTime" placeholder="e.g. 12:30 or 12.5" inputmode="decimal">
+    </div>
+
+    <div class="field">
+      <label>Overhead per run <span class="hint">injection · gradient · re-equil.</span></label>
+      <input type="text" class="time-input" id="overheadTime" placeholder="e.g. 3:00 or 3" inputmode="decimal">
+    </div>
+
+    <div class="field">
+      <label>Number of analyses</label>
+      <div class="stepper">
+        <button type="button" id="decBtn" aria-label="Decrease">&minus;</button>
+        <input type="number" id="numAnalyses" value="10" min="1" inputmode="numeric">
+        <button type="button" id="incBtn" aria-label="Increase">+</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Start time</label>
+      <div class="segmented">
+        <button type="button" class="active" id="startNowBtn">Now</button>
+        <button type="button" id="startCustomBtn">Custom</button>
+      </div>
+      <input type="time" class="time-input" id="customStart" style="margin-top:10px; display:none;">
+    </div>
+  </div>
+
+  <button class="btn-primary" id="calcBtn">Calculate Batch</button>
+
+  <!-- Results -->
+  <div class="card" id="resultsCard" style="display:none;">
+    <p class="card-title">Batch Summary</p>
+    <div class="result-grid">
+      <div class="result-cell accent">
+        <div class="rlabel">Cycle Time</div>
+        <div class="rvalue" id="rCycle">--</div>
+      </div>
+      <div class="result-cell accent">
+        <div class="rlabel">Batch Duration</div>
+        <div class="rvalue" id="rDuration">--</div>
+      </div>
+      <div class="result-cell full">
+        <div class="rlabel">Start &rarr; End</div>
+        <div class="rvalue" id="rRange">--</div>
+      </div>
+    </div>
+    <button class="btn-ghost" id="saveHistoryBtn">Save to history</button>
+  </div>
+
+  <!-- History -->
+  <div class="card">
+    <p class="card-title">Batch History</p>
+    <div class="history-list" id="historyList">
+      <div class="history-empty">No batches saved yet</div>
+    </div>
+  </div>
+
+  <footer>HPLC TIME COUNTER · PROTOTYPE v0.1</footer>
+</div>
+
+<script>
+(function(){
+  const $ = (id) => document.getElementById(id);
+
+  const analysisTimeEl = $('analysisTime');
+  const overheadTimeEl = $('overheadTime');
+  const numAnalysesEl = $('numAnalyses');
+  const customStartEl = $('customStart');
+  const startNowBtn = $('startNowBtn');
+  const startCustomBtn = $('startCustomBtn');
+  const calcBtn = $('calcBtn');
+  const decBtn = $('decBtn');
+  const incBtn = $('incBtn');
+  const saveHistoryBtn = $('saveHistoryBtn');
+  const historyList = $('historyList');
+
+  let useCustomStart = false;
+  let history = [];
+  let lastResult = null;
+
+  // ---- Core logic (per spec) ----
+  function parseTimeToMinutes(str){
+    if(!str) return NaN;
+    str = str.trim();
+    if(str.includes(':')){
+      const parts = str.split(':').map(Number);
+      if(parts.some(isNaN)) return NaN;
+      const [h, m] = parts;
+      return h * 60 + m;
+    }
+    const n = parseFloat(str.replace(',', '.'));
+    return isNaN(n) ? NaN : n;
+  }
+
+  function cycleTime(analysisMin, overheadMin){
+    return analysisMin + overheadMin;
+  }
+
+  function batchDuration(cycleMin, count){
+    return cycleMin * count;
+  }
+
+  function calculateEndTime(start, totalMin){
+    return new Date(start.getTime() + totalMin * 60000);
+  }
+
+  function formatMinutes(totalMin){
+    const h = Math.floor(totalMin / 60);
+    const m = Math.round(totalMin % 60);
+    if(h > 0) return h + 'h ' + String(m).padStart(2,'0') + 'm';
+    return m + 'm';
+  }
+
+  function formatClock(date){
+    return date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+  }
+
+  function formatDateShort(date){
+    return date.toLocaleDateString([], {month:'short', day:'numeric'});
+  }
+
+  // ---- UI wiring ----
+  startNowBtn.addEventListener('click', () => {
+    useCustomStart = false;
+    startNowBtn.classList.add('active');
+    startCustomBtn.classList.remove('active');
+    customStartEl.style.display = 'none';
+  });
+
+  startCustomBtn.addEventListener('click', () => {
+    useCustomStart = true;
+    startCustomBtn.classList.add('active');
+    startNowBtn.classList.remove('active');
+    customStartEl.style.display = 'block';
+    if(!customStartEl.value){
+      const now = new Date();
+      customStartEl.value = String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
+    }
+  });
+
+  decBtn.addEventListener('click', () => {
+    const v = Math.max(1, (parseInt(numAnalysesEl.value)||1) - 1);
+    numAnalysesEl.value = v;
+  });
+  incBtn.addEventListener('click', () => {
+    const v = (parseInt(numAnalysesEl.value)||0) + 1;
+    numAnalysesEl.value = v;
+  });
+
+  function getStartDate(){
+    if(!useCustomStart) return new Date();
+    const now = new Date();
+    const [h, m] = (customStartEl.value || '00:00').split(':').map(Number);
+    const d = new Date(now);
+    d.setHours(h, m, 0, 0);
+    return d;
+  }
+
+  function calculate(){
+    const analysisMin = parseTimeToMinutes(analysisTimeEl.value);
+    const overheadMin = parseTimeToMinutes(overheadTimeEl.value || '0') || 0;
+    const count = Math.max(1, parseInt(numAnalysesEl.value) || 0);
+
+    if(isNaN(analysisMin) || analysisMin <= 0){
+      analysisTimeEl.style.boxShadow = '0 0 0 2px var(--danger)';
+      setTimeout(()=>{ analysisTimeEl.style.boxShadow = ''; }, 1200);
+      return;
+    }
+
+    const cycle = cycleTime(analysisMin, overheadMin);
+    const total = batchDuration(cycle, count);
+    const start = getStartDate();
+    const end = calculateEndTime(start, total);
+
+    // Update main readout
+    $('endTimeDisplay').innerHTML = formatClock(end) + '<span class="unit">/ ' + formatDateShort(end) + '</span>';
+    $('cycleSub').textContent = formatMinutes(cycle);
+    $('totalSub').textContent = formatMinutes(total);
+    $('runsSub').textContent = count;
+
+    // Update results card
+    $('resultsCard').style.display = 'block';
+    $('rCycle').textContent = formatMinutes(cycle);
+    $('rDuration').textContent = formatMinutes(total);
+    $('rRange').textContent = formatClock(start) + '  \u2192  ' + formatClock(end);
+
+    lastResult = {
+      analysisMin, overheadMin, count, cycle, total,
+      start: start.toISOString(), end: end.toISOString()
+    };
+  }
+
+  calcBtn.addEventListener('click', calculate);
+
+  saveHistoryBtn.addEventListener('click', () => {
+    if(!lastResult) return;
+    history.unshift(lastResult);
+    if(history.length > 8) history.pop();
+    renderHistory();
+  });
+
+  function renderHistory(){
+    if(history.length === 0){
+      historyList.innerHTML = '<div class="history-empty">No batches saved yet</div>';
+      return;
+    }
+    historyList.innerHTML = history.map(h => {
+      const start = new Date(h.start);
+      const end = new Date(h.end);
+      return '<div class="history-item">' +
+        '<div><div class="h-mid">' + h.count + ' runs \u00d7 ' + formatMinutes(h.cycle) + '</div>' +
+        '<div class="h-left">' + formatDateShort(start) + ' ' + formatClock(start) + '</div></div>' +
+        '<div class="h-right">' + formatClock(end) + '</div>' +
+        '</div>';
+    }).join('');
+  }
+
+  // Enter key triggers calculation from any input
+  [analysisTimeEl, overheadTimeEl, numAnalysesEl, customStartEl].forEach(el => {
+    el.addEventListener('keydown', (e) => {
+      if(e.key === 'Enter') calculate();
+    });
+  });
+})();
+</script>
+</body>
+</html>
