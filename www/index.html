@@ -522,6 +522,24 @@
 (function(){
   const $ = (id) => document.getElementById(id);
 
+  // Native alarm plugin (bypasses silent/vibrate). Falls back to a console
+  // warning when running in a plain browser (no window.Capacitor).
+  const BatchAlarm = (window.Capacitor && window.Capacitor.registerPlugin)
+    ? window.Capacitor.registerPlugin('BatchAlarm')
+    : null;
+
+  async function scheduleEndAlarm(endDate){
+    if(!BatchAlarm){
+      console.warn('BatchAlarm plugin unavailable (not running inside the native app).');
+      return;
+    }
+    try{
+      await BatchAlarm.scheduleAlarm({ triggerAtMillis: endDate.getTime() });
+    }catch(err){
+      console.error('Failed to schedule alarm:', err);
+    }
+  }
+
   const analysisTimeEl = $('analysisTime');
   const overheadTimeEl = $('overheadTime');
   const numAnalysesEl = $('numAnalyses');
@@ -648,6 +666,8 @@
       analysisMin, overheadMin, count, cycle, total,
       start: start.toISOString(), end: end.toISOString()
     };
+
+    scheduleEndAlarm(end);
   }
 
   calcBtn.addEventListener('click', calculate);
