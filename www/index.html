@@ -485,7 +485,8 @@
     </div>
   </div>
 
-  <button class="btn-primary" id="calcBtn">Calculate Batch</button>
+  <button class="btn-primary" id="calcBtn">Start Batch &amp; Set Alarm</button>
+  <div id="alarmStatus" style="text-align:center; font-family: var(--mono); font-size: 11.5px; color: var(--text-dim); margin-top: -4px;"></div>
 
   <!-- Results -->
   <div class="card" id="resultsCard" style="display:none;">
@@ -529,14 +530,25 @@
     : null;
 
   async function scheduleEndAlarm(endDate){
+    const statusEl = $('alarmStatus');
     if(!BatchAlarm){
+      if(statusEl) statusEl.textContent = 'Alarm plugin unavailable (open this app on your Android device, not a browser).';
       console.warn('BatchAlarm plugin unavailable (not running inside the native app).');
       return;
     }
     try{
+      if(statusEl) statusEl.textContent = 'Scheduling alarm...';
       await BatchAlarm.scheduleAlarm({ triggerAtMillis: endDate.getTime() });
+      if(statusEl){
+        statusEl.textContent = 'Alarm set for ' + endDate.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+        statusEl.style.color = 'var(--phosphor)';
+      }
     }catch(err){
       console.error('Failed to schedule alarm:', err);
+      if(statusEl){
+        statusEl.textContent = 'Could not set alarm: ' + (err && err.message ? err.message : 'permission needed. Check the settings screen that just opened.');
+        statusEl.style.color = 'var(--danger)';
+      }
     }
   }
 
